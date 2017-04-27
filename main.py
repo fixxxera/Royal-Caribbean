@@ -50,7 +50,7 @@ headers = {
     "Accept-Language": "en-US,en;q=0.5",
     "Connection": "keep-alive"
 }
-dest_codes = ["ALCAN", "DUBAI", "FAR.E", "AUSTL", "BAHAM", "BERMU", "ATLCO", "CARIB", "CUBAN", "EUROP", "HAWAI",
+dest_codes = ["ALCAN", "FAR.E", "AUSTL", "BAHAM", "BERMU", "ATLCO", "CARIB", "CUBAN", "EUROP", "HAWAI",
               "PACIF", "ISLAN", "SOPAC", "T.ATL", "TPACI"]
 
 
@@ -83,18 +83,29 @@ def ged_codes(code):
               + "=true&currentPage=" + str(start_page) + "&action=update"
         page = requests.get(url, headers=headers)
         soup = BeautifulSoup(page.text, "lxml")
-        for link_line in soup.find_all("a"):
-            if "cruises" in str(link_line.get("href")):
-                if "-" in str(link_line.get("href")) and "currencyCode" in str(link_line.get("href")):
-                    src = str(link_line.get("href"))
-                    src = src.replace("/cruises/", "").replace("2F", "")
-                    elements = src.split("?")
-                    tmp_string = '' + elements[0] + ',' + code
-                    if tmp_string in url_list:
-                        pass
-                    else:
-                        url_list.append(tmp_string)
-                        print("Processing itinerary...", tmp_string)
+        results = soup.find_all('div', {'class': 'row search-results'})
+        for r in results:
+            ports_ul = r.find('ul', {'class': 'clearfix list-ports'})
+            lis = ports_ul.find_all('li')
+            ports = []
+            for li in lis:
+                if '    ' in li.text.strip() or 'Ports:' in li.text.strip():
+                    pass
+                else:
+                    ports.append(li.text.strip().split(',')[0])
+            title_url = r.find('a')['href']
+            src = title_url.replace("/cruises/", "").replace("2F", "")
+            elements = src.split("?")
+            tmp_string = '' + elements[0] + ',' + code + ','
+            for p in ports:
+                tmp_string += str(p + '|')
+            tmp_string = tmp_string[:-1]
+            if tmp_string in url_list:
+                pass
+            else:
+                url_list.append(tmp_string)
+                print("Processing itinerary...", tmp_string)
+
         start_page += 1
 
 
@@ -109,10 +120,8 @@ print("Processing....")
 def get_destination(param):
     if param == 'ALCAN':
         return ['Alaska', 'A']
-    elif param == 'DUBAI':
-        return ['Arabian Gulf', 'AG']
     elif param == 'FAR.E':
-        return ['Asia', 'O']
+        return ['Exotics', 'O']
     elif param == 'AUSTL':
         return ['AU/NZ', 'P']
     elif param == 'BAHAM':
@@ -124,13 +133,13 @@ def get_destination(param):
     elif param == 'CARIB':
         return ['Carib', 'C']
     elif param == 'CUBAN':
-        return ['Cuba', 'S']
+        return ['Cuba', 'C']
     elif param == 'EUROP':
         return ['Europe', 'E']
     elif param == 'HAWAI':
         return ['Hawaii', 'H']
     elif param == 'PACIF':
-        return ['Pacific', 'A']
+        return ['Pacific', 'I']
     elif param == 'ISLAN':
         return ['Repositioning', 'R']
     elif param == 'SOPAC':
@@ -239,8 +248,131 @@ def format_date_for_dateline(osd):
     return final_date
 
 
+def split_repo(ports, dn, dc):
+    wc = ['Costa Maya, Mexico', 'Cozumel, Mexico', 'Falmouth, Jamaica', 'George Town, Grand Cayman',
+          'Ocho Rios, Jamaica']
+
+    ec = ['Basseterre, St. Kitts', 'Bridgetown, Barbados', 'Castries, St. Lucia', 'Charlotte Amalie, St. Thomas',
+          'Fort De France', 'Kingstown, St. Vincent', 'Philipsburg, St. Maarten', 'Ponce, Puerto Rico',
+          'Punta Cana, Dominican Rep', 'Roseau, Dominica', 'San Juan, Puerto Rico', 'St. Croix, U.S.V.I.',
+          "St. George's, Grenada", "St. John's, Antigua", 'Tortola, B.V.I']
+    nn = ['Halifax', 'Charlottetown']
+    ports_list = []
+    for i in range(len(ports)):
+
+        if i == 0:
+            pass
+        else:
+            ports_list.append(ports[i])
+
+    for element in wc:
+        for p in ports_list:
+            if p in element or element in p:
+                return ['West Carib', 'C']
+
+    for element in ec:
+        for p in ports_list:
+            if p in element or element in p:
+                return ['East Carib', 'C']
+
+    for element in nn:
+        for p in ports_list:
+            if p in element or element in p:
+                return ['Can/New En', 'NN']
+    return [dn, dc]
+
+
+def split_europe(ports, dn, dc):
+    baltic = ['Petropavlovsk, Russia', 'Bergen, Norway', 'Flam, Norway', 'Geiranger, Norway', 'Alesund, Norway',
+              'Stavanger, Norway', 'Skjolden, Norway', 'Stockholm, Sweden', 'Helsinki, Finland',
+              'St. Petersburg, Russia', 'Tallinn, Estonia', 'Riga, Latvia', 'Warnemunde, Germany',
+              'Copenhagen, Denmark', 'Kristiansand, Norway', 'Skagen, Denmark', 'Fredericia, Denmark',
+              'Rostock (Berlin), Germany', 'Nynashamn, Sweden', 'Oslo, Norway', 'Amsterdam, Netherlands',
+              'Reykjavik, Iceland',
+              'Zeebrugge (Brussels), Belgium', 'Southampton, England']
+    eastern_med = ['Athens (Piraeus), Greece', 'Katakolon, Greece', 'Dubrovnik, Croatia', 'Mykonos, Greece',
+                   'Rhodes, Greece', 'Chania (Souda),Crete, Greece', 'Koper, Slovenia', 'Split, Croatia',
+                   'Santorini, Greece', 'Zadar, Croatia', 'Corfu, Greece', 'Kotor, Montenegro']
+    west_med = ['Catania,Sicily,Italy', 'Ajaccio, Corsica', 'Alicante, Spain', 'Barcelona, Spain', 'Bilbao, Spain',
+                'Cadiz, Spain', 'Cannes, France', 'Cartagena, Spain', 'Florence / Pisa (Livorno),Italy',
+                'Fuerteventura, Canary', 'Funchal (Madeira), Portugal', 'Genoa, Italy', 'Gibraltar, United Kingdom',
+                'Ibiza, Spain', 'La Coruna, Spain', 'La Spezia, Italy', 'Lanzarote, Canary Islands',
+                'Las Palmas, Gran Canaria', 'Lisbon, Portugal', 'Malaga, Spain', 'Marseille, France',
+                'Messina (Sicily), Italy', 'Montecarlo, Monaco', 'Naples, Italy', 'Nice (Villefranche)',
+                'Palma De Mallorca, Spain', 'Ponta Delgada, Azores', 'Portofino, Italy', 'Provence (Toulon), France',
+                'Ravenna, Italy', 'Sete, France', 'St. Peter Port, Channel Isl', 'Tenerife, Canary Islands',
+                'Valencia, Spain', 'Valletta, Malta', 'Venice, Italy', 'Vigo, Spain']
+    europe = ['Rome (Civitavecchia), Italy', 'Le Havre (Paris), France', 'Akureyri, Iceland',
+              'Belfast, Northern Ireland', 'Cherbourg, France', 'Cork (Cobh), Ireland', 'Dover, England',
+              'Dublin, Ireland', 'Edinburgh, Scotland', 'Greenock (Glasgow), Scotland', 'Inverness/Loch Ness, Scotland',
+              'Lerwick/Shetland, Scotland', 'Liverpool, England',
+              'Waterford (Dunmore E.), Ireland']
+
+    ports_visited = ports
+
+    ports_list = []
+    for i in range(len(ports_visited)):
+
+        if i == 0:
+            pass
+        else:
+            ports_list.append(ports_visited[i])
+    for element in baltic:
+        for p in ports_list:
+            if p in element or element in p:
+                return ['Baltic', 'E']
+            elif ports_visited[0] in element or element in ports_visited[0]:
+                return ['Baltic', 'E']
+
+    for element in eastern_med:
+        for p in ports_list:
+            if p in element or element in p:
+                return ['Eastern Med', 'E']
+
+    for element in west_med:
+        for p in ports_list:
+            if p in element or element in p:
+                return ['Western Med', 'E']
+
+    return [dn, dc]
+
+
+def split_carib(ports, dn, dc):
+    wc = ['Costa Maya, Mexico', 'Cozumel, Mexico', 'Falmouth, Jamaica', 'George Town, Grand Cayman',
+          'Ocho Rios, Jamaica']
+
+    ec = ['Basseterre, St. Kitts', 'Bridgetown, Barbados', 'Castries, St. Lucia', 'Charlotte Amalie, St. Thomas',
+          'Fort De France', 'Kingstown, St. Vincent', 'Philipsburg, St. Maarten', 'Ponce, Puerto Rico',
+          'Punta Cana, Dominican Rep', 'Roseau, Dominica', 'San Juan, Puerto Rico', 'St. Croix, U.S.V.I.',
+          "St. George's, Grenada", "St. John's, Antigua", 'Tortola, B.V.I']
+    ports_list = []
+    for i in range(len(ports)):
+
+        if i == 0:
+            pass
+        else:
+            ports_list.append(ports[i])
+
+    for element in wc:
+        for p in ports_list:
+            if p in element or element in p:
+                return ['West Carib', 'C']
+
+    for element in ec:
+        for p in ports_list:
+            if p in element or element in p:
+                return ['East Carib', 'C']
+
+    return [dn, dc]
+
+
 def parse(index):
     ship = index.split(",")
+    ports_raw = ship[2]
+    ports = []
+    for p in ports_raw.split('|'):
+        ports.append(p)
+    print(ports)
     url = "http://www.royalcaribbean.com/ajax/cruise/inlinepricing/" + ship[
         0] + "?currencyCode=USD&sCruiseType=CO&_=1481317060902"
     cruise_info = {}
@@ -294,7 +426,6 @@ def parse(index):
               cruise_info["packageId"].strip() + \
               "?currencyCode=USD&sCruiseType=CO&sailDate=" + sail_date + "&_=1481040091122"
         if url in packages:
-            print("duplicate")
             continue
         else:
             packages.append(url)
@@ -317,17 +448,34 @@ def parse(index):
                     continue
         brochure_name = details["title"]
         vessel_name = details['shipText']
+        vessel_id = get_vessel_id(vessel_name)
         number_of_nights = int(details["title"].split()[0])
         destination = get_destination(ship[1])
         destination_code = destination[1]
         destination_name = destination[0]
-        vessel_id = get_vessel_id(vessel_name)
         return_date = calculate_days(sail_date, str(number_of_nights))
+        if 'Carib' in destination_name:
+            dest = split_carib(ports, destination_name, destination_code)
+            destination_code = dest[1]
+            destination_name = dest[0]
+        if destination_name == 'Carib':
+            if 'Western Caribbean' in brochure_name:
+                destination_name = 'West Carib'
+        if 'Repositioning' in destination_name:
+            dest = split_repo(ports, destination_name, destination_code)
+            destination_code = dest[1]
+            destination_name = dest[0]
+        if 'Europe' in destination_name:
+            dest = split_europe(ports, destination_name, destination_code)
+            destination_code = dest[1]
+            destination_name = dest[0]
+        final_ports = ''
+        for p in ports:
+            final_ports += str(p+', ')
+        final_ports = final_ports.strip()[:-1]
         temp = [destination_code, destination_name, vessel_id, vessel_name, cruise_id, cruise_line_name,
                 itinerary_id, brochure_name, number_of_nights, sail_date, return_date, interior_bucket_price,
-                oceanview_bucket_price, balcony_bucket_price, suite_bucket_price]
-        print("Processing: ", brochure_name)
-
+                oceanview_bucket_price, balcony_bucket_price, suite_bucket_price, final_ports]
         mini_list.append(temp)
 
 
@@ -368,6 +516,7 @@ def write_file_to_excell(data_array):
     worksheet.set_column("M:M", 25)
     worksheet.set_column("N:N", 20)
     worksheet.set_column("O:O", 20)
+    worksheet.set_column("P:P", 30)
     worksheet.write('A1', 'DestinationCode', bold)
     worksheet.write('B1', 'DestinationName', bold)
     worksheet.write('C1', 'VesselID', bold)
@@ -383,6 +532,7 @@ def write_file_to_excell(data_array):
     worksheet.write('M1', 'OceanViewBucketPrice', bold)
     worksheet.write('N1', 'BalconyBucketPrice', bold)
     worksheet.write('O1', 'SuiteBucketPrice', bold)
+    worksheet.write('P1', 'Ports', bold)
     row_count = 1
     money_format = workbook.add_format({'bold': True})
     ordinary_number = workbook.add_format({"num_format": '#,##0'})
@@ -452,6 +602,8 @@ def write_file_to_excell(data_array):
                     worksheet.write_number(row_count, column_count, int(en), money_format)
                 except ValueError:
                     worksheet.write_string(row_count, column_count, en, centered)
+            if column_count == 15:
+                worksheet.write_string(row_count, column_count, en, centered)
             column_count += 1
         row_count += 1
     workbook.close()
