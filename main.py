@@ -472,6 +472,12 @@ def parse(index):
         final_ports = ''
         for p in ports:
             final_ports += str(p+', ')
+        if destination_code == 'O':
+            if 'Hong Kong' in ports[0] or 'Shenzhen' in ports[0] or 'Tianjin' in ports[0] or 'Shanghai' in ports[0]:
+                if "(" in ports[0]:
+                    destination_name = ports[0].split()[0]
+                else:
+                    destination_name = ports[0]
         final_ports = final_ports.strip()[:-1]
         temp = [destination_code, destination_name, vessel_id, vessel_name, cruise_id, cruise_line_name,
                 itinerary_id, brochure_name, number_of_nights, sail_date, return_date, interior_bucket_price,
